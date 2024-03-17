@@ -1,0 +1,30 @@
+#version 460 core
+
+layout (set = 0, binding = 0) uniform UboData
+{
+  vec4 color[256];
+} buffer_a;
+
+layout (set = 0, binding = 1) writeonly buffer OutData
+{
+  vec4 out_data[];
+} buffer_b;
+
+layout (push_constant) uniform PushConsts
+{
+  uint out_data_size;
+} pc;
+
+layout (set = 3, binding = 0) uniform sampler2D random_tex; 
+
+layout (local_size_x_id = 0) in;
+layout (local_size_x = 32) in;
+
+void main()
+{
+  uint thread_id = gl_LocalInvocationIndex;
+  if (thread_id >= pc.out_data_size)
+    return;
+
+  buffer_b.out_data[thread_id] = buffer_a.color[thread_id % 256];
+}

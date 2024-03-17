@@ -150,6 +150,7 @@ void ComputeProgram::writeDescSet(vk::DescriptorSet set, uint32_t set_id, const 
   };
 
   std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> bufferInfos;  
+  std::vector<std::unique_ptr<vk::DescriptorImageInfo>> imageInfos;
   std::vector<vk::WriteDescriptorSet> writeDesc;
   
   writeDesc.reserve(writes.size());
@@ -160,15 +161,9 @@ void ComputeProgram::writeDescSet(vk::DescriptorSet set, uint32_t set_id, const 
     assert(bindingInfo);
 
     auto bufBinding = std::get_if<BufferBinding>(&src.value);
-    if (!bufBinding)
-      continue;
-    
-    auto bufInfo = std::make_unique<vk::DescriptorBufferInfo>();
+    auto imgBinding = std::get_if<ImageBinding>(&src.value);
 
-    //vk::DescriptorBufferInfo bufInfo {};
-    bufInfo->setBuffer(bufBinding->buffer->apiBuffer());
-    bufInfo->setOffset(bufBinding->offset);
-    bufInfo->setRange(bufBinding->range);
+    assert(bufBinding || imgBinding);
 
     vk::WriteDescriptorSet write {};
     write.setDstSet(set);
@@ -176,14 +171,59 @@ void ComputeProgram::writeDescSet(vk::DescriptorSet set, uint32_t set_id, const 
     write.setDescriptorCount(1);
     write.setDstBinding(src.binding);
     write.setDstArrayElement(0);
-    write.setPBufferInfo(bufInfo.get());
+
+    if (bufBinding)
+    {
+      auto bufInfo = std::make_unique<vk::DescriptorBufferInfo>();
+      bufInfo->setBuffer(bufBinding->buffer->apiBuffer());
+      bufInfo->setOffset(bufBinding->offset);
+      bufInfo->setRange(bufBinding->range);
+      
+      write.setPBufferInfo(bufInfo.get());
+      bufferInfos.push_back(std::move(bufInfo));
+    }
+    else if (imgBinding)
+    {
+      auto imgInfo = std::make_unique<vk::DescriptorImageInfo>();
+      imgInfo->setSampler(imgBinding->sampler);
+      imgInfo->setImageView(imgBinding->view? imgBinding->view->getView() : nullptr);
+      imgInfo->setImageLayout(imgBinding->layout);
+      
+      write.setPImageInfo(imgInfo.get());
+      imageInfos.push_back(std::move(imgInfo));
+    }
 
     writeDesc.push_back(write);
-    bufferInfos.push_back(std::move(bufInfo));
   }
 
   auto ctx_ptr = ctx_.lock();
   ctx_ptr->device().updateDescriptorSets(writeDesc, {});
+}
+
+vk::DescriptorSet ComputeProgram::allocDescSet(vk::DescriptorPool pool, uint32_t set_id)
+{
+  auto layouts = {descLayouts.at(set_id).get()};
+
+  vk::DescriptorSetAllocateInfo allocInfo {};
+  allocInfo.setDescriptorPool(pool);
+  allocInfo.setSetLayouts(layouts);
+
+  auto ctx = ctx_.lock();
+  auto res = ctx->device().allocateDescriptorSets(allocInfo);
+  return res[0];  
+}
+
+vk::UniqueDescriptorSet ComputeProgram::allocDescSetUnique(vk::DescriptorPool pool, uint32_t set_id)
+{
+  auto layouts = {descLayouts.at(set_id).get()};
+
+  vk::DescriptorSetAllocateInfo allocInfo {};
+  allocInfo.setDescriptorPool(pool);
+  allocInfo.setSetLayouts(layouts);
+
+  auto ctx = ctx_.lock();
+  auto res = ctx->device().allocateDescriptorSetsUnique(allocInfo);
+  return std::move(res[0]);  
 }
 
 std::shared_ptr<ComputeProgram> ProgramManager::loadComputeProgram(std::weak_ptr<BaseContext> ctx, const std::string &path)
@@ -213,11 +253,5 @@ std::shared_ptr<ComputeProgram> ProgramManager::loadComputeProgram(std::weak_ptr
   programs[file_path] = prog;
   return prog;
 }
-
-void write_descriptor_set(std::shared_ptr<ComputePipeline> &pipeline, uint32_t set_id, vk::DescriptorSet set, const std::vector<DescriptorWrite> writes)
-{
-
-}
-
 
 }

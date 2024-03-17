@@ -1,0 +1,150 @@
+#version 460 
+
+#extension GL_GOOGLE_include_directive : require
+
+#include "common.glsl"
+
+layout (set = 0, binding = 0) buffer OutColorBuffer
+{
+  vec4 outColor[]; 
+};
+
+layout (set = 0, binding = 1) uniform sampler3D sdfGrid;
+
+layout (push_constant) uniform PushConsts
+{
+  vec4 camera_pos;
+  vec4 camera_x;
+  vec4 camera_y;
+  vec4 camera_z;
+
+  float projDist; // distance to proj plane
+
+  uint outWidth;
+  uint outHeight;
+  uint samplesPerPixel;
+  
+  float sdfAABBScale; // sdf is a cube in range [-scale, +scale] centered in (0, 0, 0)
+  uint _pad0;
+  uint _pad1;
+  uint _pad2;
+} pc;
+
+
+float readSDF(in vec3 world_pos);
+vec3 estimateNormal(in vec3 world_pos);
+float estimateAO(in vec3 world_pos, in vec3 world_normal, float radius);
+
+layout (local_size_x = 8, local_size_y = 4) in;
+
+void main()
+{
+  uvec2 pixelPos = gl_WorkGroupID.xy * gl_WorkGroupSize.xy + gl_LocalInvocationID.xy;
+  
+  if (pixelPos.x >= pc.outWidth || pixelPos.y >= pc.outHeight)
+    return;
+
+  vec2 uv = (pixelPos + vec2(0.5, 0.5))/vec2(pc.outWidth, pc.outHeight);
+  Camera camera = Camera(pc.camera_pos.xyz, pc.camera_x.xyz, pc.camera_y.xyz, pc.camera_z.xyz);
+  
+  vec3 rayDir = screen_to_world_dir(uv, camera, float(pc.outWidth)/pc.outHeight, pc.projDist);
+
+  vec3 sdfAABBMin = pc.sdfAABBScale * vec3(-0.5, -0.5, -0.5);
+  vec3 sdfAABBMax = pc.sdfAABBScale * vec3(0.5, 0.5, 0.5);
+  
+  vec2 rayHit = ray_aabb_intersection(camera.pos, rayDir, sdfAABBMin, sdfAABBMax);
+
+  vec4 resColor = vec4(0, 0, 0, 0);
+
+  if (rayHit.x < rayHit.y)
+  {
+    vec3 rayStart = camera.pos + (rayHit.x + 1e-6) * rayDir;
+    float tMax = rayHit.y - rayHit.x - 1e-6;
+
+    float t = 0.f;
+    bool hit = false;
+
+    for (uint i = 0; i < 128; i++)
+    {
+      if (t >= tMax)
+        break;
+
+      float d = readSDF(rayStart + t * rayDir);
+      if (d < 0.f)
+      {
+        hit = true;
+        break;
+      }
+
+      t += d;
+    }
+
+    if (hit)
+    {
+      const vec3 lightPos = vec3(1.5, 1.5, 1.5);
+
+      vec3 p = rayStart + t * rayDir;
+      vec3 norm = estimateNormal(p);
+      float ao = estimateAO(p, norm, 0.15);
+
+      vec3 L = normalize(lightPos - p);
+
+      vec3 light = vec3(1, 1, 1) * max(dot(norm, L), 0.f) + ao * vec3(0.1);
+
+      resColor = vec4(light, 0.f);
+    }
+  }
+
+  outColor[pixelPos.x + pixelPos.y * pc.outWidth] = resColor; 
+}
+
+// sdf center = vec3(0, 0, 0)
+// sdf min = -0.5 * scale
+// sdf max = 0.5 * scale
+// assume that world pos is inside sdf's AABB
+float readSDF(in vec3 world_pos)
+{
+  vec3 sdfMin = pc.sdfAABBScale * vec3(-0.5, -0.5, -0.5);
+  vec3 sdfMax = pc.sdfAABBScale * vec3(0.5, 0.5, 0.5);
+
+  vec3 sdfTexCoords = (world_pos - sdfMin)/pc.sdfAABBScale;
+
+  return texture(sdfGrid, sdfTexCoords).x;
+}
+
+vec3 estimateNormal(in vec3 p)
+{
+  const float eps = 1e-3;
+  vec3 stepX = vec3(eps, 0, 0);
+  vec3 stepY = vec3(0, eps, 0);
+  vec3 stepZ = vec3(0, 0, eps);
+
+  vec3 n;
+  n.x = readSDF(p + stepX) - readSDF(p - stepX);
+  n.y = readSDF(p + stepY) - readSDF(p - stepY);
+  n.z = readSDF(p + stepZ) - readSDF(p - stepZ);
+
+  return normalize(n/(2 * eps));
+}
+
+float estimateAO(in vec3 p, in vec3 n, float radius)
+{
+  const uint numSamples = 5;
+
+  float visibility = 0.f;
+  float tStep = radius/numSamples;
+
+  for (uint i = 1; i <= numSamples; i++)
+  {
+    float dist  = i * tStep; 
+    vec3 pSample = p + dist * n;
+    float d = readSDF(pSample);
+
+    visibility += (1.f - clamp(abs(d - dist)/dist, 0.f, 1.f))/numSamples;
+  }
+
+  return visibility;
+
+
+  return 1.f;
+}

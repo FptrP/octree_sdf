@@ -12,7 +12,10 @@ add_library(vkc
   base_context.hpp
   base_context.cpp 
   buffer.cpp
-  shaders.cpp)
+  shaders.cpp
+  image.cpp
+  sampler_pool.cpp
+  cmd_utils.cpp)
 
 target_compile_definitions(vkc PRIVATE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
 target_compile_options(vkc PRIVATE -g)

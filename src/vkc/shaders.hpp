@@ -3,6 +3,7 @@
 
 #include "base_context.hpp"
 #include "buffer.hpp"
+#include "image.hpp"
 
 #include <unordered_map>
 #include <string>
@@ -46,7 +47,9 @@ struct BufferBinding
 
 struct ImageBinding
 {
-  // todo
+  vk::Sampler sampler;
+  ImageViewPtr view;
+  vk::ImageLayout layout {vk::ImageLayout::eShaderReadOnlyOptimal};
 };
 
 struct DescriptorWrite
@@ -68,6 +71,9 @@ public:
   std::shared_ptr<ComputePipeline> makePipeline(const std::vector<ConstSpecEntry> &const_specs);
 
   void writeDescSet(vk::DescriptorSet set, uint32_t set_id, const std::vector<DescriptorWrite> &writes);
+
+  vk::DescriptorSet allocDescSet(vk::DescriptorPool pool, uint32_t set_id = 0);
+  vk::UniqueDescriptorSet allocDescSetUnique(vk::DescriptorPool pool, uint32_t set_id = 0);
 
   vk::DescriptorSetLayout getDescLayout(uint32_t index) const { return *descLayouts.at(index); }
   vk::PipelineLayout getPipelineLayout() const { return *pLayout; }
@@ -113,8 +119,7 @@ private:
   vk::UniquePipeline pipeline;
 };
 
-
-void write_descriptor_set(std::shared_ptr<ComputePipeline> &pipeline, uint32_t set_id, vk::DescriptorSet set, const std::vector<DescriptorWrite> writes);
+using ComputePipelinePtr = std::shared_ptr<ComputePipeline>; 
 
 }
 

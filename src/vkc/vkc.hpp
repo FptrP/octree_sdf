@@ -4,7 +4,8 @@
 #include "base_context.hpp"
 #include "buffer.hpp"
 #include "context.hpp"
- 
+#include "cmd_utils.hpp"
+
 namespace vkc
 {
   // context 

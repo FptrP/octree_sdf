@@ -1,0 +1,2 @@
+/usr/bin/ar qc libvkc.a CMakeFiles/vkc.dir/base_context.cpp.o CMakeFiles/vkc.dir/buffer.cpp.o CMakeFiles/vkc.dir/shaders.cpp.o CMakeFiles/vkc.dir/image.cpp.o CMakeFiles/vkc.dir/sampler_pool.cpp.o CMakeFiles/vkc.dir/cmd_utils.cpp.o
+/usr/bin/ranlib libvkc.a

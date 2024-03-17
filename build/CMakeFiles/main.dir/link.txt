@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/main.dir/src/main.cpp.o CMakeFiles/main.dir/src/sdf/sdf.cpp.o CMakeFiles/main.dir/src/stbi/stb_impl.cpp.o -o main  src/vkc/libvkc.a /usr/lib/x86_64-linux-gnu/libvulkan.so src/vkc/SPIRV-Reflect/libspirv-reflect-static.a 

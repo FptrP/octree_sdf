@@ -30,6 +30,8 @@ struct SDFDenseCPU
 
 
 SDFDenseCPU create_sphere_sdf(uint32_t dim, float r);
+SDFDenseCPU create_menger_sponge(uint32_t dim, float r);
+SDFDenseCPU create_octahedron(uint32_t dim, float r);
 
 //assumes that file contains dim^3 floats  
 SDFDenseCPU load_from_bin(const char *path);

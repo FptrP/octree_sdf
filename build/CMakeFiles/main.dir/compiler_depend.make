@@ -320,9 +320,6 @@ CMakeFiles/main.dir/src/main.cpp.o: ../src/main.cpp \
   ../src/vkc/SPIRV-Reflect/include/spirv/unified1/spirv.h \
   ../src/vkc/sampler_pool.hpp \
   ../src/vkc/cmd_utils.hpp \
-  ../src/vknn/context.hpp \
-  ../src/vknn/array.hpp \
-  ../src/vknn/mm_kernel.hpp \
   ../src/sdf/sdf.hpp \
   /usr/include/glm/glm.hpp \
   /usr/include/glm/detail/_fixes.hpp \
@@ -472,6 +469,9 @@ CMakeFiles/main.dir/src/main.cpp.o: ../src/main.cpp \
   /usr/include/glm/detail/type_half.inl \
   /usr/include/glm/integer.hpp \
   /usr/include/glm/detail/func_integer.inl \
+  ../src/args_parser.hpp \
+  /usr/include/c++/11/cinttypes \
+  /usr/include/inttypes.h \
   ../src/stbi/stb_image.h \
   /usr/include/c++/11/stdlib.h \
   ../src/stbi/stb_image_write.h
@@ -1089,6 +1089,12 @@ CMakeFiles/main.dir/src/stbi/stb_impl.cpp.o: ../src/stbi/stb_impl.cpp \
 
 ../src/sdf/sdf.cpp:
 
+../src/stbi/stb_image.h:
+
+/usr/include/inttypes.h:
+
+/usr/include/c++/11/cinttypes:
+
 /usr/include/glm/integer.hpp:
 
 /usr/include/glm/packing.hpp:
@@ -1248,12 +1254,6 @@ CMakeFiles/main.dir/src/stbi/stb_impl.cpp.o: ../src/stbi/stb_impl.cpp \
 /usr/include/glm/glm.hpp:
 
 ../src/sdf/sdf.hpp:
-
-../src/vknn/mm_kernel.hpp:
-
-../src/stbi/stb_image.h:
-
-../src/vknn/context.hpp:
 
 ../src/vkc/cmd_utils.hpp:
 
@@ -1783,6 +1783,8 @@ CMakeFiles/main.dir/src/stbi/stb_impl.cpp.o: ../src/stbi/stb_impl.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/byteswap.h:
 
+../src/args_parser.hpp:
+
 /usr/include/x86_64-linux-gnu/bits/uintn-identity.h:
 
 /usr/include/c++/11/bits/fs_path.h:
@@ -1892,8 +1894,6 @@ CMakeFiles/main.dir/src/stbi/stb_impl.cpp.o: ../src/stbi/stb_impl.cpp \
 /usr/include/glm/detail/type_mat2x4.hpp:
 
 /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_inline.h:
-
-../src/vknn/array.hpp:
 
 /usr/include/c++/11/random:
 

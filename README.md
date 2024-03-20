@@ -6,6 +6,7 @@ ToDo:
 - add shader pass that fills out buffer with some color
 - add Camera, projection params. Draw AABB of sdf
 - Trace sdf
+- FIX COORD SYSTEM: cube [-1; 1] is more common
 
 2. Add oct tree sdf
 - Simple algorithm to build tree representation: if values 8 blocks have same sign - merge

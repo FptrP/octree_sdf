@@ -5,6 +5,8 @@
 #include <vkc.hpp>
 
 #include "sdf/sdf.hpp"
+#include "args_parser.hpp"
+
 #include "stbi/stb_image.h"
 #include "stbi/stb_image_write.h"
 
@@ -90,8 +92,34 @@ static std::vector<float> download_buffer(vk::CommandBuffer cmd, vkc::BufferPtr 
   return dst;
 }
 
-int main()
+static void save_vec4_to_png(const char *path, uint32_t w, uint32_t h, const std::vector<float> &data, bool ignore_alpha = true)
 {
+  std::vector<uint32_t> outData;
+  outData.resize(w * h);
+  assert(data.size() == 4 * w * h);
+
+  for (uint32_t i = 0; i < data.size()/4; i++)
+  {
+    glm::vec4 val{data[4*i], data[4*i + 1], data[4*i + 2], data[4*i + 3]};
+    glm::uvec4 conv = glm::clamp(255.f * val, glm::vec4(0.f), glm::vec4(255.f));
+    
+    const uint32_t MSK = 255;
+    conv = conv & MSK;
+
+    if (ignore_alpha)
+      conv.a = 255;
+
+    uint32_t packed = conv.r|(conv.g << 8)|(conv.b << 16)|(conv.a  << 24); 
+    outData[i] = packed;
+  }
+
+  stbi_write_png(path, w, h, 4, outData.data(), 0);
+}
+
+int main(int argc, char **argv)
+{
+  AppArgs g_args {argc, argv};
+
   auto ctx = std::make_shared<vkc::Context>(true);
 
   vk::UniqueCommandPool cmdPool;
@@ -136,13 +164,18 @@ int main()
   auto stagingBuffer = ctx->create_buffer(32 << 20ul, bufUsage, VMA_MEMORY_USAGE_CPU_TO_GPU);
   
   sdf::SDFRenderParams renderParams {};
-  renderParams.camera = sdf::Camera::lookAt({0.f, 0.5f, -1.f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
+  renderParams.camera = g_args.camera;
+  renderParams.fovy = g_args.fovy;
+  renderParams.outWidth = g_args.width;
+  renderParams.outHeight = g_args.height;
+  renderParams.sdfScale = g_args.modelScale;
   //renderParams.camera = sdf::Camera::lookAt({-1.f, 0.0f, 0.f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
 
   std::unique_ptr<sdf::SDFDense> sdf;// = sdf::create_sdf_gpu(ctx, {128, 128, 128});
   // load sdf
   {
-    auto sdfCpu = sdf::load_from_bin("sample_models/teapot_128.bin");
+    auto sdfCpu = sdf::load_from_bin(g_args.modelName.c_str());
+    //auto sdfCpu = sdf::create_octahedron(128, 0.45);
     sdf = sdf::create_sdf_gpu(ctx, {sdfCpu.w, sdfCpu.h, sdfCpu.d});
     sdf::upload_sdf(*cmd, *sdf, sdfCpu, stagingBuffer);
   }
@@ -175,7 +208,8 @@ int main()
   stagingBuffer->unmap(); 
 
 
-  stbi_write_hdr("out.hdr", renderParams.outWidth, renderParams.outHeight, 4, temp.data());
-  
+  //stbi_write_hdr("out.hdr", renderParams.outWidth, renderParams.outHeight, 4, temp.data());
+  save_vec4_to_png("out.png", renderParams.outWidth, renderParams.outHeight, temp);
+
   return 0;
 }

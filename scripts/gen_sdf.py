@@ -18,7 +18,6 @@ if __name__ == '__main__':
   print("Mesh loaded, generating voxel sdf....")
 
   voxels = mesh_to_voxels(mesh, voxel_res, pad=False) # outputs cube [-1; 1]^3
-  voxels = voxels * 0.5 # resize to [-0.5, 0.5]
   
   out_res = voxels.shape[0]
   base_dir = os.path.split(sdf_in)[0]

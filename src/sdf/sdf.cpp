@@ -35,25 +35,132 @@ SDFDenseCPU create_sphere_sdf(uint32_t dim, float r)
   return sdf;
 }
 
+inline float sdBox(glm::vec3 p, glm::vec3 b)
+{
+  glm::vec3 q = glm::abs(p) - b;
+  return glm::length(glm::max(q, glm::vec3(0.0))) + glm::min(glm::max(q.x, glm::max(q.y, q.z)), 0.0f);
+}
+
+inline float mengerSponge(glm::vec3 p, float r)
+{
+  const int MENGER_ITERS = 3;
+
+  float d = sdBox(p, glm::vec3(r));
+  float res = d;
+
+  float s = 1.0;
+  for (int m = 0; m < MENGER_ITERS; m++)
+  {
+    
+    glm::vec3 a = glm::mod(p * s, glm::vec3(2.0, 2.0, 2.0)) - glm::vec3(1.0);
+    
+    //float3 a = float3(fmod(p.x * s, 2.0) - 1.0, fmod(p.y * s, 2.0) - 1.0, fmod(p.z * s, 2.0) - 1.0);
+    
+    s *= 3.0;
+    glm::vec3 r = glm::abs(glm::vec3(1.0) - 3.0f * glm::abs(a));
+
+    float da = glm::max(r.x, r.y);
+    float db = glm::max(r.y, r.z);
+    float dc = glm::max(r.z, r.x);
+    float c = (glm::min(da, glm::min(db, dc)) - 1.0) / s;
+
+    if (c > d)
+    {
+      d = c;
+      res = d;
+    }
+  }
+
+  return res;
+}
+
+SDFDenseCPU create_menger_sponge(uint32_t dim, float r)
+{
+  SDFDenseCPU sdf {dim, dim, dim, {}};
+  sdf.dist.resize(dim * dim * dim);
+
+  float scale = 1.f/dim;
+
+  uint32_t rowExt = dim;
+  uint32_t sliceExt = rowExt * dim;
+
+  for (uint32_t zi = 0; zi < dim; zi++)
+  {
+    for (uint32_t yi = 0; yi < dim; yi++)
+    {
+      for (uint32_t xi = 0; xi < dim; xi++)
+      {
+        float x = (xi + 0.5f) * scale - 0.5f;
+        float y = (yi + 0.5f) * scale - 0.5f;
+        float z = (zi + 0.5f) * scale - 0.5f;
+
+        float d = mengerSponge(glm::vec3{x, y, z}, r);
+
+        sdf.dist[xi + yi * rowExt + zi * sliceExt] = d;
+      }
+    }
+  }
+  return sdf;
+}
+
+static inline float sdOctahedron(glm::vec3 p, float s)
+{
+  p = glm::abs(p);
+  return (p.x+p.y+p.z-s)*0.57735027;
+}
+
+SDFDenseCPU create_octahedron(uint32_t dim, float r)
+{
+  SDFDenseCPU sdf {dim, dim, dim, {}};
+  sdf.dist.resize(dim * dim * dim);
+
+  float scale = 1.f/dim;
+
+  uint32_t rowExt = dim;
+  uint32_t sliceExt = rowExt * dim;
+
+  for (uint32_t zi = 0; zi < dim; zi++)
+  {
+    for (uint32_t yi = 0; yi < dim; yi++)
+    {
+      for (uint32_t xi = 0; xi < dim; xi++)
+      {
+        float x = (xi + 0.5f) * scale - 0.5f;
+        float y = (yi + 0.5f) * scale - 0.5f;
+        float z = (zi + 0.5f) * scale - 0.5f;
+
+        float d = sdOctahedron(glm::vec3{x, y, z}, r);
+
+        sdf.dist[xi + yi * rowExt + zi * sliceExt] = d;
+      }
+    }
+  }
+  return sdf;
+}
+
 SDFDenseCPU load_from_bin(const char *path)
 {
   std::ifstream file{path, std::ios::ate|std::ios::binary};
 
   auto fileSize = file.tellg();
+  file.seekg(0);
+
   assert(fileSize % sizeof(float) == 0);
 
   uint32_t numFloats = fileSize/sizeof(float);
   uint32_t estDim = powf(numFloats, 1.f/3.f);
-  
-  assert(estDim * estDim * estDim == numFloats);
+
+  if (estDim * estDim * estDim != numFloats)
+  {
+    file.read((char *)(&numFloats), sizeof(numFloats));
+    estDim = powf(numFloats, 1.f/3.f);
+    assert(estDim * estDim * estDim == numFloats);
+  }
 
   std::vector<float> buffer(numFloats); 
-  file.seekg(0);
+  
   file.read((char*)buffer.data(), buffer.size() * sizeof(float));
   file.close();
-
-  //for (float &val : buffer) // mesh_to
-  //  val *= 0.5f;
 
   SDFDenseCPU res {estDim, estDim, estDim, std::move(buffer)};
   return res;

@@ -49,8 +49,8 @@ void main()
   
   vec3 rayDir = screen_to_world_dir(uv, camera, float(pc.outWidth)/pc.outHeight, pc.projDist);
 
-  vec3 sdfAABBMin = pc.sdfAABBScale * vec3(-0.5, -0.5, -0.5);
-  vec3 sdfAABBMax = pc.sdfAABBScale * vec3(0.5, 0.5, 0.5);
+  vec3 sdfAABBMin = pc.sdfAABBScale * vec3(-1);
+  vec3 sdfAABBMax = pc.sdfAABBScale * vec3(1);
   
   vec2 rayHit = ray_aabb_intersection(camera.pos, rayDir, sdfAABBMin, sdfAABBMax);
 
@@ -70,7 +70,7 @@ void main()
         break;
 
       float d = readSDF(rayStart + t * rayDir);
-      if (d < 0.f)
+      if (d < 0.001f)
       {
         hit = true;
         break;
@@ -104,12 +104,12 @@ void main()
 // assume that world pos is inside sdf's AABB
 float readSDF(in vec3 world_pos)
 {
-  vec3 sdfMin = pc.sdfAABBScale * vec3(-0.5, -0.5, -0.5);
-  vec3 sdfMax = pc.sdfAABBScale * vec3(0.5, 0.5, 0.5);
+  vec3 sdfMin = pc.sdfAABBScale * vec3(-1);
+  vec3 sdfMax = pc.sdfAABBScale * vec3(1);
 
-  vec3 sdfTexCoords = (world_pos - sdfMin)/pc.sdfAABBScale;
-
-  return texture(sdfGrid, sdfTexCoords).x;
+  vec3 sdfTexCoords = 0.5 * (world_pos - sdfMin)/pc.sdfAABBScale;
+  float d = texture(sdfGrid, sdfTexCoords).x; // in cube [-1; 1] 
+  return d * pc.sdfAABBScale;
 }
 
 vec3 estimateNormal(in vec3 p)

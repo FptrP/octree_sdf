@@ -18,6 +18,7 @@ add_library(vkc
   cmd_utils.cpp)
 
 target_compile_definitions(vkc PRIVATE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
+#target_compile_definitions(vkc PRIVATE VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL=1)
 target_compile_options(vkc PRIVATE -g)
 target_include_directories(vkc PUBLIC ./)
 target_link_libraries(vkc PUBLIC Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator spirv-reflect-static)

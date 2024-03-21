@@ -8,6 +8,19 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 namespace vkc
 {
 
+static vk::PhysicalDevice findDevice(const std::vector<vk::PhysicalDevice> &devices)
+{
+  auto it = std::find_if(devices.begin(), devices.end(), [](vk::PhysicalDevice dev)
+  {
+    return dev.getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
+  });
+
+  if (it != devices.end())
+    return *it;
+
+  return devices.at(0);
+}
+
 BaseContext::BaseContext(bool enable_debug)
 {
   //vk::createInstance()
@@ -31,7 +44,8 @@ BaseContext::BaseContext(bool enable_debug)
   VULKAN_HPP_DEFAULT_DISPATCHER.init(*instance_);
 
   auto physicalDevices = instance_->enumeratePhysicalDevices();
-  physDevice_ = physicalDevices.at(0);
+  
+  physDevice_ = findDevice(physicalDevices);
 
   auto deviceFeatures =  physDevice_.getFeatures();
 

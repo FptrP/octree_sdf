@@ -180,6 +180,12 @@ int main(int argc, char **argv)
     sdf::upload_sdf(*cmd, *sdf, sdfCpu, stagingBuffer);
   }
 
+  auto sparseImg = std::make_shared<vkc::SparseImage3D>(ctx, sdf->ext, 1, vk::Format::eR32Sfloat);
+  
+  sparseImg->addPageMapping(0, {0, 0, 0});
+  sparseImg->addPageMapping(0, {0, 0, 1});
+  sparseImg->updateMemoryPages();
+
   auto sdfDenseRenderer = std::make_unique<sdf::SDFDenseRenderer>(ctx, *descPool);
   // trace sdf
   {

@@ -61,6 +61,41 @@ private:
   vk::ImageViewCreateInfo info {};
 };
 
+class SparseImage3D : public BaseImage
+{
+public:
+  SparseImage3D(std::shared_ptr<BaseContext> &&ctx_, vk::Extent3D ext, uint32_t num_mips, vk::Format fmt);
+  ~SparseImage3D();
+
+  void addPageMapping(uint32_t mip_level, vk::Offset3D offset_in_blk); 
+  void removePageMapping(uint32_t mip_level, vk::Offset3D offset_in_blk);
+  bool isPageMapped(uint32_t mip_level, vk::Offset3D offset_in_blk) const;
+
+  void updateMemoryPages();
+
+  const vk::ImageCreateInfo &getInfo() const { return info; }
+  vk::Extent3D getBlockSize() const { return blockSize; }
+
+private:
+  vk::ImageCreateInfo info {};
+  vk::Extent3D blockSize {0, 0, 0};
+  uint32_t bytesPerPixel = 4;
+  uint32_t memoryTypeBits = 0;
+  
+  vk::SparseImageMemoryRequirements sparseRequirements;
+  
+
+  struct MappedPage
+  {
+    vk::Offset3D offset;
+    uint32_t mip;
+    VmaAllocation allocation;
+  };
+
+  std::vector<MappedPage> mappedPages;
+};
+
+using SparseImage3DPtr = std::shared_ptr<SparseImage3D>;
 
 }
 

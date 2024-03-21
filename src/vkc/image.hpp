@@ -27,11 +27,15 @@ public:
   BaseImage &operator=(const BaseImage&) = delete;
 
   std::shared_ptr<BaseContext> getContext() const { return ctx; }
+  const vk::ImageCreateInfo &getInfo() const { return info; }
 
 protected:
   std::shared_ptr<BaseContext> ctx;
   vk::Image handle;
+  vk::ImageCreateInfo info {};
 };
+
+using BaseImagePtr = std::shared_ptr<BaseImage>;
 
 class Image : public BaseImage
 {
@@ -39,11 +43,8 @@ public:
   Image(std::shared_ptr<BaseContext> &&ctx_, const vk::ImageCreateInfo &info_);
   ~Image();
 
-  const vk::ImageCreateInfo &getInfo() const { return info; }
-
 private:
   VmaAllocation allocation;
-  vk::ImageCreateInfo info {};
 };
 
 class ImageView
@@ -73,11 +74,11 @@ public:
 
   void updateMemoryPages();
 
-  const vk::ImageCreateInfo &getInfo() const { return info; }
+  
   vk::Extent3D getBlockSize() const { return blockSize; }
 
 private:
-  vk::ImageCreateInfo info {};
+  //vk::ImageCreateInfo info {};
   vk::Extent3D blockSize {0, 0, 0};
   uint32_t bytesPerPixel = 4;
   uint32_t memoryTypeBits = 0;

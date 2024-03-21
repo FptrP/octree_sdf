@@ -17,9 +17,18 @@ struct SDFBlock
   vk::Offset3D offsetInBlocks;
   uint32_t dstMip;
 
-  float *distances; // pointer to blockSIze of distances
+  std::vector<float> distances; // pointer to blockSIze of distances
 };
 
+
+struct SDFBlockList
+{
+  vk::Extent3D dstSize;
+  uint32_t numMips;
+  std::vector<SDFBlock> blocks;
+};
+
+SDFBlockList dense_to_block_list(const SDFDenseCPU &src_sdf, vk::Extent3D block_size);
 
 struct SparseSDFCreateInfo
 {

@@ -8,7 +8,7 @@ namespace vkc
 {
 // stage == {} - barrier for all commands
 // stage = vk::PipelineStageFlagBits::eTopOfPipe|bottom - no barriers
-void image_layout_transition(vk::CommandBuffer cmd, ImagePtr ptr, vk::ImageLayout src, vk::ImageLayout dst, vk::PipelineStageFlags opt_stage = {});
+void image_layout_transition(vk::CommandBuffer cmd, BaseImagePtr ptr, vk::ImageLayout src, vk::ImageLayout dst, vk::PipelineStageFlags opt_stage = {});
 
 // sync all stages, make all memory visible and available
 void global_memory_barrier(vk::CommandBuffer cmd);

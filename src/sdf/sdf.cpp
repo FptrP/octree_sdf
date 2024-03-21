@@ -201,7 +201,8 @@ void upload_sdf(vk::CommandBuffer cmd, SDFDense &dst, const SDFDenseCPU &src, vk
 {
   // todo: handle case when staging buffer is smaller then amount of data
   assert(staging->getSize()/sizeof(float) >= src.d * src.w * src.h);
-  assert(src.w == dst.ext.width && src.h == dst.ext.height && src.d == dst.ext.depth);
+  auto dstExt = dst.image->getInfo().extent;
+  assert(src.w == dstExt.width && src.h == dstExt.height && src.d == dstExt.depth);
 
   {
     void *ptr = staging->map();
@@ -255,7 +256,7 @@ SDFDenseRenderer::SDFDenseRenderer(vkc::ContextPtr ctx, vk::DescriptorPool pool)
   set = prog->allocDescSetUnique(pool);
 }
 
-void SDFDenseRenderer::render(vk::CommandBuffer cmd, const SDFRenderParams &params, const SDFDense &sdf, vkc::BufferPtr out_buffer)
+void SDFDenseRenderer::render(vk::CommandBuffer cmd, const SDFRenderParams &params, vkc::ImageViewPtr sdfView, vkc::BufferPtr out_buffer)
 {
   assert(out_buffer->getSize() >= params.outWidth * params.outHeight * sizeof(glm::vec4));
 
@@ -294,7 +295,7 @@ void SDFDenseRenderer::render(vk::CommandBuffer cmd, const SDFRenderParams &para
 
   pipeline->getProgram()->writeDescSet(*set, 0, {
     {0, vkc::BufferBinding {out_buffer}},
-    {1, vkc::ImageBinding {ctx->getSampler(vkc::DEF_SMOOTH_SAMPLER), sdf.view, vk::ImageLayout::eShaderReadOnlyOptimal}}
+    {1, vkc::ImageBinding {ctx->getSampler(vkc::DEF_SMOOTH_SAMPLER), sdfView, vk::ImageLayout::eShaderReadOnlyOptimal}}
   });
 
   const uint32_t workGroupX = 8;

@@ -3,7 +3,7 @@
 namespace vkc
 {
 
-void image_layout_transition(vk::CommandBuffer cmd, ImagePtr ptr, vk::ImageLayout src, vk::ImageLayout dst, vk::PipelineStageFlags opt_stage)
+void image_layout_transition(vk::CommandBuffer cmd, BaseImagePtr ptr, vk::ImageLayout src, vk::ImageLayout dst, vk::PipelineStageFlags opt_stage)
 {
   vk::AccessFlags srcAccess {};
   vk::AccessFlags dstAccess {};

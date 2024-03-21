@@ -8,6 +8,7 @@ add_subdirectory(src/vkc)
 add_executable(main 
   src/main.cpp
   src/sdf/sdf.cpp
+  src/sdf/sdf_sparse.cpp
   src/stbi/stb_impl.cpp)
 
 #target_include_directories(main PRIVATE src/vkc)

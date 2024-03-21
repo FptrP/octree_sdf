@@ -5,6 +5,7 @@
 #include <vkc.hpp>
 
 #include "sdf/sdf.hpp"
+#include "sdf/sdf_sparse.hpp"
 #include "args_parser.hpp"
 
 #include "stbi/stb_image.h"
@@ -172,26 +173,33 @@ int main(int argc, char **argv)
   //renderParams.camera = sdf::Camera::lookAt({-1.f, 0.0f, 0.f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
 
   std::unique_ptr<sdf::SDFDense> sdf;// = sdf::create_sdf_gpu(ctx, {128, 128, 128});
+  std::unique_ptr<sdf::SDFSparse> sdfSparse;
   // load sdf
   {
     auto sdfCpu = sdf::load_from_bin(g_args.modelName.c_str());
     //auto sdfCpu = sdf::create_octahedron(128, 0.45);
     sdf = sdf::create_sdf_gpu(ctx, {sdfCpu.w, sdfCpu.h, sdfCpu.d});
     sdf::upload_sdf(*cmd, *sdf, sdfCpu, stagingBuffer);
-  }
 
-  auto sparseImg = std::make_shared<vkc::SparseImage3D>(ctx, sdf->ext, 1, vk::Format::eR32Sfloat);
-  
-  sparseImg->addPageMapping(0, {0, 0, 0});
-  sparseImg->addPageMapping(0, {0, 0, 1});
-  sparseImg->updateMemoryPages();
+    auto sdfBlockList = sdf::dense_to_block_list(sdfCpu, vk::Extent3D{32, 32, 16});
+
+    sdf::SparseSDFCreateInfo info {};
+    info.cmd = *cmd;
+    info.numMips = sdfBlockList.numMips;
+    info.blocks = std::move(sdfBlockList.blocks);
+    info.dstSize = sdfBlockList.dstSize;
+    info.staging = stagingBuffer;
+    info.srcBlockSize = vk::Extent3D{32, 32, 16};
+
+    sdfSparse = sdf::create_sdf_from_blocks(info);
+  }
 
   auto sdfDenseRenderer = std::make_unique<sdf::SDFDenseRenderer>(ctx, *descPool);
   // trace sdf
   {
     cmd->begin(vk::CommandBufferBeginInfo{});
 
-    sdfDenseRenderer->render(*cmd, renderParams, *sdf, stagingBuffer);
+    sdfDenseRenderer->render(*cmd, renderParams, sdfSparse->view, stagingBuffer);
 
     cmd->end();
 

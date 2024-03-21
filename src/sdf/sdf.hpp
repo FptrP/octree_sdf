@@ -67,7 +67,7 @@ struct SDFDenseRenderer
   SDFDenseRenderer(vkc::ContextPtr ctx, vk::DescriptorPool pool);
 
   // out buffer size must be >= width x height x vec4 
-  void render(vk::CommandBuffer cmd, const SDFRenderParams &params, const SDFDense &sdf, vkc::BufferPtr out_buffer);
+  void render(vk::CommandBuffer cmd, const SDFRenderParams &params, vkc::ImageViewPtr sdfView, vkc::BufferPtr out_buffer);
 
 
 private:

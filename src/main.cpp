@@ -176,12 +176,14 @@ int main(int argc, char **argv)
   std::unique_ptr<sdf::SDFSparse> sdfSparse;
   // load sdf
   {
-    auto sdfCpu = sdf::load_from_bin(g_args.modelName.c_str());
+    //auto sdfCpu = sdf::load_from_bin(g_args.modelName.c_str());
     //auto sdfCpu = sdf::create_octahedron(128, 0.45);
-    sdf = sdf::create_sdf_gpu(ctx, {sdfCpu.w, sdfCpu.h, sdfCpu.d});
-    sdf::upload_sdf(*cmd, *sdf, sdfCpu, stagingBuffer);
+    //sdf = sdf::create_sdf_gpu(ctx, {sdfCpu.w, sdfCpu.h, sdfCpu.d});
+    //sdf::upload_sdf(*cmd, *sdf, sdfCpu, stagingBuffer);
 
-    auto sdfBlockList = sdf::dense_to_block_list(sdfCpu, vk::Extent3D{32, 32, 16});
+    //auto sdfBlockList = sdf::dense_to_block_list(sdfCpu, vk::Extent3D{32, 32, 16});
+
+    auto sdfBlockList = sdf::load_blocks_from_bin(g_args.modelName.c_str());
 
     sdf::SparseSDFCreateInfo info {};
     info.cmd = *cmd;

@@ -1,5 +1,7 @@
 #include "sdf_sparse.hpp"
 
+#include <fstream>
+
 namespace sdf
 {
 
@@ -70,6 +72,55 @@ SDFBlockList dense_to_block_list(const SDFDenseCPU &src_sdf, vk::Extent3D block_
   outSDF.blocks = std::move(blocks);
   return outSDF;
 }
+
+SDFBlockList load_blocks_from_bin(const char *path)
+{
+  std::ifstream file(path, std::ios::binary);
+  std::vector<uint32_t> metadata(9);
+  file.read((char *)metadata.data(), metadata.size() * sizeof(decltype(metadata)::value_type));
+
+  vk::Extent3D blockSize {metadata[0], metadata[1], metadata[2]};
+  vk::Extent3D topMipSize {metadata[3], metadata[4], metadata[5]};
+
+  uint32_t floatsPerBlock = blockSize.width * blockSize.height * blockSize.depth;
+  
+  uint32_t topMip = metadata[6];
+  uint32_t numBlocks = metadata[7];
+  uint32_t numFloats = metadata[8];
+
+  vk::Extent3D mip0Size {topMipSize.width * (1 << topMip), topMipSize.height * (1 << topMip), topMipSize.depth * (1 << topMip)};
+  vk::Extent3D texSize {mip0Size.width * blockSize.width, mip0Size.height * blockSize.height, mip0Size.depth * blockSize.depth};
+
+  std::vector<BinBlockEntry> binBlocks(numBlocks);
+  std::vector<float> floatData(numFloats);
+
+  file.read((char *)binBlocks.data(), binBlocks.size() * sizeof(BinBlockEntry));
+  file.read((char *)floatData.data(), floatData.size() * sizeof(float));
+
+  file.close();
+
+  SDFBlockList outBlockList;
+  outBlockList.numMips = topMip + 1;
+  outBlockList.dstSize = texSize;
+  outBlockList.blocks.reserve(binBlocks.size());
+
+
+  for (auto &binBlk : binBlocks)
+  {
+    SDFBlock blk;
+    blk.offsetInBlocks = vk::Offset3D{binBlk.coords.width, binBlk.coords.height, binBlk.coords.depth};
+    blk.dstMip = binBlk.mip;
+    blk.distances.resize(floatsPerBlock);
+  
+    std::memcpy(blk.distances.data(), floatData.data() + binBlk.dataOffset, floatsPerBlock * sizeof(float));
+
+    outBlockList.blocks.push_back(std::move(blk));
+  }
+
+
+  return outBlockList;
+}
+
 
 static inline uint32_t calc_max_mip_levels(vk::Extent3D size)
 {

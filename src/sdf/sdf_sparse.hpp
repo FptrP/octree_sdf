@@ -30,6 +30,15 @@ struct SDFBlockList
 
 SDFBlockList dense_to_block_list(const SDFDenseCPU &src_sdf, vk::Extent3D block_size);
 
+struct BinBlockEntry // block info stored in .bin file
+{
+  vk::Extent3D coords;
+  uint32_t mip;
+  uint32_t dataOffset;
+};
+
+SDFBlockList load_blocks_from_bin(const char *path);
+
 struct SparseSDFCreateInfo
 {
   vk::Extent3D dstSize;

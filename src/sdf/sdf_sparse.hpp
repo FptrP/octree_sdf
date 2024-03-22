@@ -10,6 +10,9 @@ struct SDFSparse
 {
   vkc::SparseImage3DPtr image;
   vkc::ImageViewPtr view;
+  
+  vkc::ImagePtr pageMapping;
+  vkc::ImageViewPtr pageMappingView; 
 };
 
 struct SDFBlock

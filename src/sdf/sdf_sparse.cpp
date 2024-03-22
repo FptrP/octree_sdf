@@ -1,6 +1,7 @@
 #include "sdf_sparse.hpp"
 
 #include <fstream>
+#include <vulkan/vulkan_format_traits.hpp>
 
 namespace sdf
 {
@@ -140,6 +141,92 @@ static inline vk::Extent3D calc_mip_size(vk::Extent3D size, uint32_t mip)
   return size;
 }
 
+static vkc::ImagePtr create_page_mapping(const SparseSDFCreateInfo &info, vk::Extent3D block_size)
+{
+  auto ctx = std::static_pointer_cast<vkc::Context>(info.staging->getContext());
+  
+  vk::Extent3D imgSize = info.dstSize;
+  imgSize.width /= block_size.width;
+  imgSize.height /= block_size.height;
+  imgSize.depth /= block_size.depth;
+
+  vk::ImageCreateInfo imgInfo {};
+  imgInfo.setImageType(vk::ImageType::e3D);
+  imgInfo.setExtent(imgSize);
+  imgInfo.setFormat(vk::Format::eR8Uint);
+  imgInfo.setArrayLayers(1);
+  imgInfo.setMipLevels(1);
+  imgInfo.setTiling(vk::ImageTiling::eOptimal);
+  imgInfo.setSharingMode(vk::SharingMode::eExclusive);
+  imgInfo.setUsage(vk::ImageUsageFlagBits::eTransferDst|vk::ImageUsageFlagBits::eTransferSrc|vk::ImageUsageFlagBits::eSampled);
+
+  auto image = ctx->create_image(imgInfo);
+
+  //imgInfo.set
+  //auto image = ctx->create_image(); 
+  
+  std::vector<uint8_t> pageMips(imgSize.width * imgSize.height * imgSize.depth);
+  std::fill(pageMips.begin(), pageMips.end(), uint8_t(255u));
+
+  for (auto &blk : info.blocks)
+  {
+    //blk.dstMip -> calc offset, extent in mip 0 blocks
+    uint32_t mipSize = 1 << blk.dstMip;
+    
+    vk::Offset3D offst {
+      blk.offsetInBlocks.x * mipSize,
+      blk.offsetInBlocks.y * mipSize,
+      blk.offsetInBlocks.z * mipSize
+    };
+    
+    for (uint32_t ix = offst.x; ix < offst.x + mipSize; ix++)
+    {
+      for (uint32_t iy = offst.y; iy < offst.y + mipSize; iy++)
+      {
+        for (uint32_t iz = offst.z; iz < offst.z + mipSize; iz++)
+        {
+          uint32_t index = ix + iy * imgSize.width + iz * imgSize.width * imgSize.height;
+          pageMips.at(index) = std::min(pageMips.at(index), uint8_t(blk.dstMip));
+        }
+      }
+    }
+  }
+
+  for (uint32_t i = 0; i < pageMips.size(); i++)
+    assert(pageMips[i] < 255); // check that all pages are mapped (at least in 1 mip)
+
+  auto staging = info.staging;
+  assert(staging->getSize() >= pageMips.size() * sizeof(uint8_t));
+
+  auto ptr = staging->map();
+  std::memcpy(ptr, pageMips.data(), pageMips.size() * sizeof(uint8_t));
+  staging->unmap();
+
+  auto cmd = info.cmd;
+
+  vk::BufferImageCopy copyRegion {};
+  copyRegion.setImageExtent(imgSize);
+  copyRegion.setImageSubresource(vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1});
+
+  cmd.reset();
+  cmd.begin(vk::CommandBufferBeginInfo{});
+  vkc::image_layout_transition(cmd, image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTopOfPipe);
+
+  cmd.copyBufferToImage(staging->apiBuffer(), image->getImage(), vk::ImageLayout::eTransferDstOptimal, {copyRegion});
+  vkc::image_layout_transition(cmd, image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, vk::PipelineStageFlagBits::eBottomOfPipe);
+  cmd.end();
+
+  vk::SubmitInfo submitInf {};
+  submitInf.setPCommandBuffers(&cmd);
+  submitInf.setCommandBufferCount(1);
+
+  auto queue = ctx->mainQueue();
+  queue.submit(submitInf);
+  queue.waitIdle();
+
+  return image;
+}
+
 std::unique_ptr<SDFSparse> create_sdf_from_blocks(const SparseSDFCreateInfo &info)
 {
   auto ctx = info.staging->getContext();
@@ -236,9 +323,20 @@ std::unique_ptr<SDFSparse> create_sdf_from_blocks(const SparseSDFCreateInfo &inf
 
   auto view = image->createView(viewInfo);
 
+  auto pageMapImage = create_page_mapping(info, imgBlockSize);
+  
+  viewInfo.setViewType(vk::ImageViewType::e3D);
+  viewInfo.setFormat(pageMapImage->getInfo().format);
+  viewInfo.setSubresourceRange(vk::ImageSubresourceRange {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+
+  auto pageMapView = pageMapImage->createView(viewInfo);
+
   auto res = std::make_unique<SDFSparse>();
   res->image = image;
   res->view = view;
+  res->pageMapping = pageMapImage;
+  res->pageMappingView = pageMapView;
+
   return res;
 }
 

@@ -340,4 +340,73 @@ std::unique_ptr<SDFSparse> create_sdf_from_blocks(const SparseSDFCreateInfo &inf
   return res;
 }
 
+SDFSparseRenderer::SDFSparseRenderer(vkc::ContextPtr ctx, vk::DescriptorPool pool)
+{
+  auto prog = ctx->loadComputeProgram("src/shaders/trace_sparse_sdf.spv");
+  pipeline = prog->makePipeline({});
+  set = prog->allocDescSetUnique(pool);
+
+  nearestSampler = ctx->getSampler(vkc::DEF_NEAREST_SAMPLER);
+
+  auto smpInfo = vkc::DEF_SMOOTH_SAMPLER;
+  smpInfo.mipmapMode = vk::SamplerMipmapMode::eNearest;
+
+  linearSampler = ctx->getSampler(smpInfo);
+}
+
+void SDFSparseRenderer::render(vk::CommandBuffer cmd, const SDFRenderParams &params, const SDFSparse &sdf, vkc::BufferPtr out_buffer)
+{
+  assert(out_buffer->getSize() >= params.outWidth * params.outHeight * sizeof(glm::vec4));
+
+  auto ctx = std::static_pointer_cast<vkc::Context>(out_buffer->getContext());
+  
+  struct PushConsts
+  {
+    glm::vec4 camera_pos;
+    glm::vec4 camera_x;
+    glm::vec4 camera_y;
+    glm::vec4 camera_z;
+
+    float projDist; // distance to proj plane
+
+    uint outWidth;
+    uint outHeight;
+    uint samplesPerPixel;
+  
+    float sdfAABBScale; // sdf is a cube in range [-scale, +scale] centered in (0, 0, 0)
+    uint _pad0;
+    uint _pad1;
+    uint _pad2;
+  } pc {
+    .camera_pos = glm::vec4{params.camera.pos, 1.f},
+    .camera_x = glm::vec4{params.camera.x, 0.f},
+    .camera_y = glm::vec4{params.camera.y, 0.f},
+    .camera_z = glm::vec4{params.camera.z, 0.f},
+    .projDist = 1.f/(2.f * tanf(params.fovy * 0.5)),
+
+    .outWidth = params.outWidth,
+    .outHeight = params.outHeight,
+    .samplesPerPixel = 1,
+
+    .sdfAABBScale = params.sdfScale
+  };
+
+  pipeline->getProgram()->writeDescSet(*set, 0, {
+    {0, vkc::BufferBinding {out_buffer}},
+    {1, vkc::ImageBinding {nullptr, sdf.view, vk::ImageLayout::eShaderReadOnlyOptimal}},
+    {2, vkc::ImageBinding {nearestSampler, nullptr, vk::ImageLayout::eUndefined}},
+    {3, vkc::ImageBinding {linearSampler, nullptr, vk::ImageLayout::eUndefined}},
+    {4, vkc::ImageBinding {nearestSampler, sdf.pageMappingView, vk::ImageLayout::eShaderReadOnlyOptimal}}
+  });
+
+  const uint32_t workGroupX = 8;
+  const uint32_t workGroupY = 4;
+
+  cmd.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline->getPipeline());
+  cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline->getProgram()->getPipelineLayout(), 0, {*set}, {});
+  cmd.pushConstants(pipeline->getProgram()->getPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(pc), &pc);
+  cmd.dispatch((pc.outWidth + workGroupX - 1)/workGroupX, (pc.outHeight + workGroupY - 1)/workGroupY, 1);
+}
+
+
 }

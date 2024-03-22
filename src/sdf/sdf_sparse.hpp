@@ -56,6 +56,22 @@ struct SparseSDFCreateInfo
 
 std::unique_ptr<SDFSparse> create_sdf_from_blocks(const SparseSDFCreateInfo &info);
 
+struct SDFSparseRenderer
+{
+  SDFSparseRenderer(vkc::ContextPtr ctx, vk::DescriptorPool pool);
+
+  // out buffer size must be >= width x height x vec4 
+  void render(vk::CommandBuffer cmd, const SDFRenderParams &params, const SDFSparse &sdf, vkc::BufferPtr out_buffer);
+
+
+private:
+  vkc::ComputePipelinePtr pipeline;
+  vk::UniqueDescriptorSet set;
+
+  vk::Sampler nearestSampler;
+  vk::Sampler linearSampler;
+};
+
 }
 
 #endif

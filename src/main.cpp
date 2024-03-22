@@ -139,7 +139,8 @@ int main(int argc, char **argv)
       {vk::DescriptorType::eStorageBuffer, 512},
       {vk::DescriptorType::eUniformBuffer, 512},
       {vk::DescriptorType::eSampledImage, 512},
-      {vk::DescriptorType::eStorageImage, 512}
+      {vk::DescriptorType::eStorageImage, 512},
+      {vk::DescriptorType::eSampler, 512}
     };
 
     vk::DescriptorPoolCreateInfo info {};
@@ -197,12 +198,13 @@ int main(int argc, char **argv)
   }
 
   auto sdfDenseRenderer = std::make_unique<sdf::SDFDenseRenderer>(ctx, *descPool);
+  auto sdfSparseRenderer = std::make_unique<sdf::SDFSparseRenderer>(ctx, *descPool);
   // trace sdf
   {
     cmd->begin(vk::CommandBufferBeginInfo{});
 
-    sdfDenseRenderer->render(*cmd, renderParams, sdfSparse->view, stagingBuffer);
-
+    //sdfDenseRenderer->render(*cmd, renderParams, sdfSparse->view, stagingBuffer);
+    sdfSparseRenderer->render(*cmd, renderParams, *sdfSparse, stagingBuffer);
     cmd->end();
 
     vk::SubmitInfo submitInf {};

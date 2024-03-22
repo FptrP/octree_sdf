@@ -9,7 +9,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/main",
-      "args": ["-model", "./sample_models/chair_3_mips_dense.bin", "-eye", "1", "0.5", "1"],
+      "args": ["-model", "./sample_models/chair_4_mips_sparse.bin", "-eye", "1", "0.5", "1"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

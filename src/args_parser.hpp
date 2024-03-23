@@ -44,9 +44,13 @@ struct AppArgs
 
     if (auto v = parseReal("-scale"))
       modelScale = *v;
+    
+    if (auto v = parseString("-mode"))
+    {
+      assert(*v == "sparse" || *v == "dense");
+      modelType = *v;
+    }
   }
-
-  
 
 
   sdf::Camera camera = sdf::Camera::lookAt({0.f, 0.0f, -2.0f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
@@ -58,6 +62,8 @@ struct AppArgs
   uint32_t numSPP = 1;
 
   std::string modelName = "sample_models/chair_grid_32.bin";
+  std::string modelType = "dense";
+
   float modelScale = 1.f;
 
 

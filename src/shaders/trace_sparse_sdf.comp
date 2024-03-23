@@ -120,16 +120,18 @@ float readSDF(in vec3 world_pos)
   sdfSize /= (1 << mipLvl);
 
   if (mipLvl > 0)
+  {
     d = texelFetch(sampler3D(sdfGrid, nearestSampler), ivec3(sdfTexCoords * sdfSize), int(mipLvl)).x;
+  }
   else
   {
     vec4 s;
-    int res = sparseTextureLodARB(sampler3D(sdfGrid, linearSampler), sdfTexCoords, 0.0, s);
+    int res = sparseTextureLodARB(sampler3D(sdfGrid, linearSampler), sdfTexCoords, int(mipLvl), s);
 
     if (sparseTexelsResidentARB(res))
       d = s.x;
     else
-      d = texelFetch(sampler3D(sdfGrid, nearestSampler), ivec3(sdfTexCoords * sdfSize), 0).x;
+      d = texelFetch(sampler3D(sdfGrid, nearestSampler), ivec3(sdfTexCoords * sdfSize), int(mipLvl)).x;
   }
     
 

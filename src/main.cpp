@@ -1,6 +1,8 @@
 #include <iostream>
 #include <random>
 #include <cmath>
+#include <chrono>
+#include <iostream>
 
 #include <vkc.hpp>
 
@@ -163,7 +165,7 @@ int main(int argc, char **argv)
   }
 
   const auto bufUsage = vk::BufferUsageFlagBits::eTransferDst|vk::BufferUsageFlagBits::eStorageBuffer|vk::BufferUsageFlagBits::eTransferSrc;
-  auto stagingBuffer = ctx->create_buffer(32 << 20ul, bufUsage, VMA_MEMORY_USAGE_CPU_TO_GPU);
+  auto stagingBuffer = ctx->create_buffer(64 << 20ul, bufUsage, VMA_MEMORY_USAGE_CPU_TO_GPU);
   
   sdf::SDFRenderParams renderParams {};
   renderParams.camera = g_args.camera;
@@ -173,28 +175,31 @@ int main(int argc, char **argv)
   renderParams.sdfScale = g_args.modelScale;
   //renderParams.camera = sdf::Camera::lookAt({-1.f, 0.0f, 0.f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
 
-  std::unique_ptr<sdf::SDFDense> sdf;// = sdf::create_sdf_gpu(ctx, {128, 128, 128});
+  std::unique_ptr<sdf::SDFDense> sdfDense;// = sdf::create_sdf_gpu(ctx, {128, 128, 128});
   std::unique_ptr<sdf::SDFSparse> sdfSparse;
   // load sdf
   {
-    //auto sdfCpu = sdf::load_from_bin(g_args.modelName.c_str());
-    //auto sdfCpu = sdf::create_octahedron(128, 0.45);
-    //sdf = sdf::create_sdf_gpu(ctx, {sdfCpu.w, sdfCpu.h, sdfCpu.d});
-    //sdf::upload_sdf(*cmd, *sdf, sdfCpu, stagingBuffer);
+    if (g_args.modelType == "dense")
+    {
+      auto sdfCpu = sdf::load_from_bin(g_args.modelName.c_str());
+      //auto sdfCpu = sdf::create_octahedron(128, 0.45);
+      sdfDense = sdf::create_sdf_gpu(ctx, {sdfCpu.w, sdfCpu.h, sdfCpu.d});
+      sdf::upload_sdf(*cmd, *sdfDense, sdfCpu, stagingBuffer);
+    }
+    else if (g_args.modelType == "sparse")
+    {
+      auto sdfBlockList = sdf::load_blocks_from_bin(g_args.modelName.c_str());
 
-    //auto sdfBlockList = sdf::dense_to_block_list(sdfCpu, vk::Extent3D{32, 32, 16});
+      sdf::SparseSDFCreateInfo info {};
+      info.cmd = *cmd;
+      info.numMips = sdfBlockList.numMips;
+      info.blocks = std::move(sdfBlockList.blocks);
+      info.dstSize = sdfBlockList.dstSize;
+      info.staging = stagingBuffer;
+      info.srcBlockSize = vk::Extent3D{32, 32, 16};
 
-    auto sdfBlockList = sdf::load_blocks_from_bin(g_args.modelName.c_str());
-
-    sdf::SparseSDFCreateInfo info {};
-    info.cmd = *cmd;
-    info.numMips = sdfBlockList.numMips;
-    info.blocks = std::move(sdfBlockList.blocks);
-    info.dstSize = sdfBlockList.dstSize;
-    info.staging = stagingBuffer;
-    info.srcBlockSize = vk::Extent3D{32, 32, 16};
-
-    sdfSparse = sdf::create_sdf_from_blocks(info);
+      sdfSparse = sdf::create_sdf_from_blocks(info);
+    }
   }
 
   auto sdfDenseRenderer = std::make_unique<sdf::SDFDenseRenderer>(ctx, *descPool);
@@ -203,8 +208,11 @@ int main(int argc, char **argv)
   {
     cmd->begin(vk::CommandBufferBeginInfo{});
 
-    //sdfDenseRenderer->render(*cmd, renderParams, sdfSparse->view, stagingBuffer);
-    sdfSparseRenderer->render(*cmd, renderParams, *sdfSparse, stagingBuffer);
+    if (g_args.modelType == "sparse")
+      sdfSparseRenderer->render(*cmd, renderParams, *sdfSparse, stagingBuffer);
+    else 
+      sdfDenseRenderer->render(*cmd, renderParams, sdfDense->view, stagingBuffer);
+    
     cmd->end();
 
     vk::SubmitInfo submitInf {};
@@ -212,8 +220,16 @@ int main(int argc, char **argv)
     submitInf.setCommandBufferCount(1);
 
     auto queue = ctx->mainQueue();
+    
+    auto timeStart = std::chrono::high_resolution_clock::now();
+    
     queue.submit(submitInf);
     queue.waitIdle();
+
+    auto timeEnd = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeStart);
+    std::cout << "Trace time : " << duration.count()/1000.0 << "ms" << std::endl; 
   }
 
   //readback buffer

@@ -1,15 +1,16 @@
-ToDo:
+Build:
+- cmake -S ./ -B ./build
+- cd build
+- make -j 4
 
-1. implement loading sparse sdf from bin
-2. implement sparse sdf filtering 
+- Command line parameters (see args_parser.hpp)
+  - -eye <float> <float> <float> 
+  - -center <float> <float> <float>
+  - -up <float> <float> <float>
+  - -model <path> - model to load 
+  - -mode <sparse|dense> - trace mod
 
-Things done:
-
-1. loading dense sdf grids and rendering
-2. sparse sdf class  
-3. uploading array of blocks to sparse sdf
-
-
+  
 External dependencies:
 - Vulkan
 - glm
